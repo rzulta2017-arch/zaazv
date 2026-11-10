@@ -1,0 +1,9 @@
+{
+  "appId": "com.mergestudio.pro",
+  "appName": "Merge Studio",
+  "webDir": "www",
+  "ios": {
+    "backgroundColor": "#000000",
+    "preferredContentMode": "mobile"
+  }
+}

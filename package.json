@@ -1,0 +1,19 @@
+{
+  "name": "merge-studio-ios",
+  "version": "1.0.0",
+  "description": "Merge Studio Pro iOS App",
+  "main": "www/index.html",
+  "scripts": {
+    "build": "echo 'Static www ready'",
+    "init-ios": "npm install && npx cap add ios && npx cap sync ios",
+    "open-ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/ios": "^6.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.1.0"
+  }
+}

@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Merge Studio" />
+    <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-512.png" />
+  <title>استوديو دمج الكرات الاحترافي V3 - متوافق مع آيفون وكمبيوتر</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Cairo -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Matter.js Physics Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+  <style>
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    input, select, textarea {
+      user-select: auto;
+      -webkit-user-select: auto;
+    }
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #000000;
+      color: #f3f4f6;
+      overflow: hidden;
+      width: 100vw;
+      height: 100dvh;
+      margin: 0;
+      padding: 0;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #111827; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 9999px; }
+
+    /* Prevent iOS Safari auto-zoom on inputs */
+    input[type="text"],
+    input[type="number"],
+    select {
+      font-size: 16px !important;
+    }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      padding: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #2563eb, #9333ea);
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+    }
+
+    .touch-scroll {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Exact 1:1 Pixel-Aspect 9:16 Reels / TikTok Stage (Zero Stretching on iPhone) */
+    .canvas-wrapper {
+      width: min(100vw, calc(100dvh * 9 / 16));
+      height: min(100dvh, calc(100vw * 16 / 9));
+      aspect-ratio: 9 / 16;
+      margin: auto;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Isolated Settings Overlay (Hidden by default) */
+    #settingsPanel {
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+      padding-top: var(--sat);
+      padding-bottom: var(--sab);
+    }
+    #settingsPanel.settings-closed {
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    #settingsPanel.settings-open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #topStageStatusBar {
+      top: max(calc(var(--sat) + 8px), 44px);
+    }
+    #secretCornerSettingsBtn {
+      top: max(calc(var(--sat) + 8px), 44px);
+    }
+  </style>
+</head>
+<body class="relative w-screen h-[100dvh] overflow-hidden bg-black flex items-center justify-center">
+
+  <!-- ================= SIDEBAR / BOTTOM DRAWER CONTROL PANEL ================= -->
+  <aside id="settingsPanel" class="settings-closed fixed inset-0 z-50 w-full max-w-xl mx-auto bg-[#121621] flex flex-col h-[100dvh] select-none shadow-2xl">
+    
+    <!-- Header with Direct HTML Save & iOS Audio Unlock -->
+    <div class="p-2.5 lg:p-3.5 border-b border-gray-800 flex items-center justify-between bg-[#0d1018] shrink-0">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 lg:w-10 lg:h-10 rounded-xl bg-gradient-to-br from-amber-500 via-pink-500 to-purple-600 flex items-center justify-center shadow-lg shrink-0">
+          <i class="fa-solid fa-bolt-lightning text-sm lg:text-lg text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-extrabold text-xs lg:text-sm text-white leading-tight">Merge Studio Pro</h1>
+            <span class="px-1.5 py-0.5 text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded">iOS + PC</span>
+          </div>
+          <p class="text-[10px] text-gray-400 hidden sm:block">متوافق مع آيفون + تكبير المستوى الأخير بلا توقف</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button id="iosAudioUnlockBtn" class="px-2 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold text-[11px] flex items-center gap-1 animate-pulse" title="تفعيل الصوت للآيفون">
+          <i class="fa-solid fa-volume-high"></i>
+          <span>تفعيل صوت آيفون</span>
+        </button>
+        <button id="muteQuickBtn" class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs transition" title="كتم/تشغيل الصوت">
+          <i class="fa-solid fa-volume-high" id="muteQuickIcon"></i>
+        </button>
+        <button id="restartQuickBtn" class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] flex items-center gap-1 transition shadow">
+          <i class="fa-solid fa-rotate-right"></i> إعادة
+        </button>
+        <button id="closeSettingsHeaderBtn" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] flex items-center gap-1.5 transition shadow">
+          <i class="fa-solid fa-play"></i> للعب
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs (4 Tabs) -->
+    <div class="grid grid-cols-4 gap-1 p-1.5 bg-[#0d1018] border-b border-gray-800 text-[11px] lg:text-xs font-bold shrink-0">
+      <button class="tab-btn active py-2 px-1 rounded-lg text-gray-300 hover:bg-gray-800 transition flex flex-col items-center gap-0.5" data-tab="tab-levels">
+        <span>🎯 المستويات</span>
+      </button>
+      <button class="tab-btn py-2 px-1 rounded-lg text-gray-300 hover:bg-gray-800 transition flex flex-col items-center gap-0.5" data-tab="tab-colors">
+        <span>🎨 الألوان والضوء</span>
+      </button>
+      <button class="tab-btn py-2 px-1 rounded-lg text-gray-300 hover:bg-gray-800 transition flex flex-col items-center gap-0.5" data-tab="tab-sounds">
+        <span>🔊 الأصوات</span>
+      </button>
+      <button class="tab-btn py-2 px-1 rounded-lg text-gray-300 hover:bg-gray-800 transition flex flex-col items-center gap-0.5" data-tab="tab-physics">
+        <span>⚡ التنقاز والفيزياء</span>
+      </button>
+    </div>
+
+    <!-- Tab Content Area -->
+    <div class="flex-1 overflow-y-auto touch-scroll p-3 lg:p-4 space-y-4">
+
+      <!-- ==================== TAB 1: 🎯 المستويات ==================== -->
+      <div id="tab-levels" class="tab-pane space-y-4">
+        <div class="bg-[#181e2e] border border-gray-700/70 rounded-xl p-3.5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <label class="text-xs font-bold text-blue-400">قوالب جاهزة سريعة:</label>
+            <select id="themePresetSelect" class="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+              <option value="phones">📱 ماركات الهواتف (Wiko → Nokia 3310)</option>
+              <option value="football">⚽ أندية كرة القدم</option>
+              <option value="crypto">🪙 العملات الرقمية</option>
+              <option value="fruits">🍉 الفواكه</option>
+            </select>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-[11px] text-gray-400">
+              <span>سلسلة الدمج الحالية:</span>
+              <label class="flex items-center gap-1.5 cursor-pointer text-gray-300">
+                <input type="checkbox" id="showTopChainToggle" checked class="accent-blue-500 rounded" />
+                <span>إظهار الشريط الفوق</span>
+              </label>
+            </div>
+            <div id="chainPreviewBar" class="flex items-center gap-1.5 overflow-x-auto py-1.5 px-1 bg-gray-900/80 rounded-lg border border-gray-800"></div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <span class="text-xs font-extrabold text-gray-200">تخصيص كل مستوى (الصورة، اللون، الحجم، الصوت):</span>
+            <button id="addTierBtn" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition">
+              + إضافة مستوى
+            </button>
+          </div>
+        </div>
+
+        <div id="levelsListContainer" class="space-y-2.5"></div>
+      </div>
+
+      <!-- ==================== TAB 2: 🎨 الألوان والضوء ==================== -->
+      <div id="tab-colors" class="tab-pane hidden space-y-4">
+        <div class="bg-[#181e2e] border border-amber-500/40 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-sun"></i> إشعاع وانفجار الضوء فـ المستوى الأخير
+            </h3>
+            <button id="testLightBurstBtn" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-lg text-xs transition">
+              ✨ جرب الضوء دابا
+            </button>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-300 flex justify-between mb-1">
+              <span>قوة الأشعة الضوئية والبرق (Final Glow):</span>
+              <span id="finalGlowVal" class="text-amber-300 font-bold">100%</span>
+            </label>
+            <input type="range" id="finalGlowInput" min="0" max="200" value="100" class="w-full accent-amber-500" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-gray-900/80 p-2 rounded-lg flex items-center justify-between border border-gray-800">
+              <span class="text-xs text-gray-300">لون أشعة النهائي:</span>
+              <input type="color" id="finalRayColor" value="#fde047" class="w-7 h-7" />
+            </div>
+            <div class="bg-gray-900/80 p-2 rounded-lg flex items-center justify-between border border-gray-800">
+              <span class="text-xs text-gray-300">لون موجة الدمج:</span>
+              <input type="color" id="shockwaveColor" value="#fef08a" class="w-7 h-7" />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-[#181e2e] border border-gray-700/70 rounded-xl p-4 space-y-3">
+          <h3 class="text-sm font-bold text-purple-400 flex items-center gap-2">
+            <i class="fa-solid fa-flask"></i> شكل القارورة وألوان الإطار
+          </h3>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">شكل القارورة:</label>
+              <select id="flaskShapeSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none">
+                <option value="circle">🧪 قارورة دائرية كلاسيكية</option>
+                <option value="cup">🥃 كأس مفتوح</option>
+                <option value="box">📦 صندوق مربع بعنق</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">ستايل الإطار:</label>
+              <select id="borderStyleSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none">
+                <option value="rainbow">🌈 قوس قزح متحرك (Rainbow)</option>
+                <option value="gradient">🎨 تدرج لونين (Gradient)</option>
+                <option value="solid">🖌️ لون واحد ثابت</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 pt-1">
+            <div class="bg-gray-900/80 p-2 rounded-lg flex items-center justify-between border border-gray-800">
+              <span class="text-xs text-gray-300">اللون 1:</span>
+              <input type="color" id="borderColor1" value="#ec4899" class="w-7 h-7" />
+            </div>
+            <div class="bg-gray-900/80 p-2 rounded-lg flex items-center justify-between border border-gray-800">
+              <span class="text-xs text-gray-300">اللون 2:</span>
+              <input type="color" id="borderColor2" value="#3b82f6" class="w-7 h-7" />
+            </div>
+            <div class="bg-gray-900/80 p-2 rounded-lg flex items-center justify-between border border-gray-800">
+              <span class="text-xs text-gray-300">لون الخلفية:</span>
+              <input type="color" id="bgColor1" value="#000000" class="w-7 h-7" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="text-xs text-gray-400 flex justify-between mb-1">
+                <span>سمك الإطار:</span>
+                <span id="borderWidthVal" class="text-white font-bold">12px</span>
+              </label>
+              <input type="range" id="borderWidthInput" min="4" max="28" value="12" class="w-full accent-purple-500" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 flex justify-between mb-1">
+                <span>توهج الإطار (Glow):</span>
+                <span id="glowSizeVal" class="text-white font-bold">18</span>
+              </label>
+              <input type="range" id="glowSizeInput" min="0" max="45" value="18" class="w-full accent-purple-500" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== TAB 3: 🔊 الأصوات ==================== -->
+      <div id="tab-sounds" class="tab-pane hidden space-y-4">
+        
+        <div class="bg-[#181e2e] border border-gray-700/70 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-emerald-400 flex items-center gap-2">
+              <i class="fa-solid fa-volume-high"></i> نظام الأصوات لكل مستوى
+            </h3>
+            <button id="testScaleSoundsBtn" class="px-3 py-1.5 bg-emerald-600/20 border border-emerald-500/40 hover:bg-emerald-600/30 text-emerald-300 rounded-lg text-xs font-bold transition">
+              🎵 سمع أصوات المستويات بالتتابع
+            </button>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">نمط الصوت عند الدمج:</label>
+            <select id="soundModeSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-xs text-white outline-none">
+              <option value="distinct">🎹 كل مستوى بصوت مختلف مميز (نغمة خاصة لكل مستوى)</option>
+              <option value="scale">🎼 سلم موسيقي تصاعدي حاد (Do-Re-Mi...)</option>
+              <option value="wow">😲 صوت "واو" تيك توك تتغير حدته مع كل مستوى</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 flex justify-between mb-1">
+              <span>مستوى الصوت العام (Master Volume):</span>
+              <span id="masterVolVal" class="text-white font-bold">85%</span>
+            </label>
+            <input type="range" id="masterVolInput" min="0" max="100" value="85" class="w-full accent-emerald-500" />
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+              <input type="checkbox" id="bounceSoundToggle" checked class="accent-emerald-500 rounded w-4 h-4" />
+              صوت خفيف ملي كتنقز الكرة (Bounce Tick)
+            </label>
+          </div>
+        </div>
+
+        <!-- Custom Global & Final Audio Upload -->
+        <div class="bg-[#181e2e] border border-gray-700/70 rounded-xl p-4 space-y-3">
+          <h3 class="text-sm font-bold text-blue-400 flex items-center gap-2">
+            <i class="fa-solid fa-file-audio"></i> رفع ملفات صوتية (MP3 / WAV)
+          </h3>
+
+          <div class="p-3 bg-gray-900/90 rounded-lg border border-gray-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-gray-200">1. صوت موحد لجميع الاندماجات (اختياري):</span>
+              <span id="globalCustomAudioStatus" class="text-[11px] text-gray-400">غير مفعل</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="file" id="globalAudioFileInput" accept="audio/*" class="text-xs text-gray-400 file:ml-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer flex-1" />
+              <button id="clearGlobalAudioBtn" class="px-2.5 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600/30 rounded-lg text-xs hidden">حذف</button>
+            </div>
+          </div>
+
+          <div class="p-3 bg-gray-900/90 rounded-lg border border-amber-500/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-300">2. صوت احتفالي خاص بالمستوى الأخير (Final Form 🔥):</span>
+              <button id="testFinalSoundBtn" class="px-2 py-1 bg-amber-500/20 text-amber-300 rounded text-[11px] font-bold">🔊 تجربة</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="file" id="finalAudioFileInput" accept="audio/*" class="text-xs text-gray-400 file:ml-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white hover:file:bg-amber-500 cursor-pointer flex-1" />
+              <button id="clearFinalAudioBtn" class="px-2.5 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600/30 rounded-lg text-xs hidden">حذف</button>
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-400">💡 ملاحظة: تقدر أيضاً ترفع صوت MP3 خاص لكل مستوى بوحدو من داخل تبويب <strong>🎯 المستويات</strong>.</p>
+        </div>
+
+      </div>
+
+      <!-- ==================== TAB 4: ⚡ التنقاز والتسجيل ==================== -->
+      <div id="tab-physics" class="tab-pane hidden space-y-4">
+        
+        <!-- NEW V3: Final Form Giant Growth & Endless Mode Controls -->
+        <div class="bg-gradient-to-br from-purple-950/50 to-[#181e2e] border border-purple-500/50 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-purple-300 flex items-center gap-2">
+              <i class="fa-solid fa-expand"></i> إعدادات المستوى الأخير (يكبر ويبقى فـ القارورة)
+            </h3>
+            <span class="text-[10px] bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded font-bold">جديد V3</span>
+          </div>
+
+          <p class="text-xs text-gray-300 leading-relaxed">
+            ملي كتوصل الكرة للمستوى الأخير، <strong>اللعبة ما كتساليش</strong>! الكرة الأخيرة كتكبر تدريجياً وكتبقى تنقز وتشع بالضوء وسط القارورة.
+          </p>
+
+          <div>
+            <label class="text-xs text-gray-300 flex justify-between mb-1">
+              <span>نسبة تكبير الكرة الأخيرة (Final Growth Multiplier):</span>
+              <span id="finalGrowthVal" class="text-amber-300 font-extrabold">1.45x</span>
+            </label>
+            <input type="range" id="finalGrowthInput" min="1.0" max="2.1" step="0.05" value="1.45" class="w-full accent-purple-500" />
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <label class="flex items-center gap-2 text-xs text-gray-200 cursor-pointer">
+              <input type="checkbox" id="finalTouchGrowToggle" checked class="accent-purple-500 rounded w-4 h-4" />
+              إلى تلاقاو جوج كرات من المستوى الأخير يزيدو يكبرو شوية وينفجرو بالضوء (بلا ما يغيبو)
+            </label>
+          </div>
+        </div>
+
+        <!-- Continuous Bouncing / Jumping Physics Controls -->
+        <div class="bg-[#181e2e] border border-gray-700/70 rounded-xl p-4 space-y-3">
+          <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2">
+            <i class="fa-solid fa-Basketball"></i> قوة التنقاز المستمر والفيزياء (Auto-Bounce)
+          </h3>
+
+          <div>
+            <label class="text-xs text-gray-300 flex justify-between mb-1">
+              <span>قوة التنقاز التلقائي (باش ما يبقاوش واقفين أبداً):</span>
+              <span id="autoBounceVal" class="text-cyan-300 font-bold">75%</span>
+            </label>
+            <input type="range" id="autoBounceInput" min="0" max="150" step="5" value="75" class="w-full accent-cyan-500" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-400 flex justify-between mb-1">
+                <span>الارتداد المطاطي (Elasticity):</span>
+                <span id="bounceVal" class="text-white font-bold">0.88</span>
+              </label>
+              <input type="range" id="bounceInput" min="0.3" max="0.98" step="0.02" value="0.88" class="w-full accent-cyan-500" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 flex justify-between mb-1">
+                <span>قوة الجاذبية:</span>
+                <span id="gravityVal" class="text-white font-bold">1.1</span>
+              </label>
+              <input type="range" id="gravityInput" min="0.4" max="2.2" step="0.1" value="1.1" class="w-full accent-cyan-500" />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 flex justify-between mb-1">
+              <span>سرعة نزول الكرات من الفوق (Spawn Rate):</span>
+              <span id="spawnRateVal" class="text-white font-bold">550 ms</span>
+            </label>
+            <input type="range" id="spawnRateInput" min="200" max="1800" step="50" value="550" class="w-full accent-cyan-500" />
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+            <label class="flex items-center gap-2 text-xs text-gray-200 font-bold cursor-pointer">
+              <input type="checkbox" id="autoSpawnToggle" checked class="accent-cyan-500 rounded w-4 h-4" />
+              إنزال الكرات تلقائياً بلا توقف
+            </label>
+            <button id="shakeAllBallsBtn" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold transition">
+              💥 نقّز كاع الكرات دابا
+            </button>
+          </div>
+        </div>
+
+        <!-- Texts & Watermark -->
+        <div class="bg-[#181e2e] border border-gray-700/70 rounded-xl p-4 space-y-3">
+          <h3 class="text-sm font-bold text-gray-200 flex items-center gap-2">
+            <i class="fa-solid fa-font"></i> النصوص والعلامة المائية
+          </h3>
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">النص التشويقي أسفل الفيديو:</label>
+            <input type="text" id="captionInput" value="Will the Ball Merge Into Final Form?" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white outline-none" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-400 block mb-1">العلامة المائية وسط القارورة:</label>
+            <input type="text" id="watermarkInput" value="BALLSIMULATOR.COM" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white outline-none" />
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom Sticky Action Bar -->
+    <div class="p-2.5 lg:p-3 bg-[#0d1018] border-t border-gray-800 flex items-center gap-2 shrink-0">
+      <button id="closeSettingsFooterBtn" class="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow flex items-center justify-center gap-2 transition">
+        <i class="fa-solid fa-check"></i> حفظ والرجوع لشاشة اللعب (9:16)
+      </button>
+      <button id="spawnFinalTestBtn" class="py-3 px-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow shrink-0" title="أنزل كرة المستوى الأخير دابا وشوف كيفاش كتكبر وتبقى">
+        🔥 أنزل النهائي
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ================= MAIN 9:16 REELS / TIKTOK GAME STAGE ================= -->
+  <main class="w-screen h-[100dvh] flex flex-col items-center justify-center relative bg-black overflow-hidden">
+    
+    <!-- Top Floating Status Bar (Matches screenshot 1 + opens Settings when tapped) -->
+    <div id="topStageStatusBar" class="fixed z-30 flex flex-wrap items-center justify-center gap-2 bg-[#121621]/90 backdrop-blur-md border border-gray-800/90 px-3.5 py-1.5 rounded-full text-[11px] text-gray-300 shadow-2xl">
+      <span><i class="fa-solid fa-circle-nodes text-blue-400 ml-1"></i> الكرات: <strong id="ballCountStat" class="text-white">0</strong></span>
+      <span class="text-gray-600">|</span>
+      <span><i class="fa-solid fa-trophy text-amber-400 ml-1"></i> أعلى: <strong id="highestTierStat" class="text-amber-300">1</strong></span>
+      <span class="text-gray-600">|</span>
+      <span><i class="fa-solid fa-crown text-purple-400 ml-1"></i> النهائي: <strong id="finalCountStat" class="text-purple-300">0</strong></span>
+      <button id="openSettingsTopBtn" class="px-2.5 py-0.5 rounded-full bg-gray-800 hover:bg-gray-700 border border-amber-500/30 text-amber-300 font-bold text-[10px] flex items-center gap-1 transition">
+        <i class="fa-solid fa-sliders"></i> الإعدادات
+      </button>
+      <button id="hideTopBarBtn" class="px-1.5 py-0.5 rounded-full bg-gray-800/70 hover:bg-gray-700 text-gray-400 hover:text-white text-[10px]" title="إخفاء الشريط الفوقاني للتصوير الصافي">
+        <i class="fa-solid fa-eye-slash"></i>
+      </button>
+    </div>
+
+    <!-- Tiny transparent corner trigger to restore bar/settings when top bar is hidden -->
+    <button id="secretCornerSettingsBtn" class="hidden fixed top-3 left-3 z-30 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 backdrop-blur-xs border border-white/10 text-white/40 flex items-center justify-center text-xs">
+      <i class="fa-solid fa-gear"></i>
+    </button>
+
+    <!-- 9:16 Fullscreen Canvas Container -->
+    <div class="canvas-wrapper bg-black flex items-center justify-center overflow-hidden">
+      <canvas id="simCanvas" width="1080" height="1920" class="w-full h-full block cursor-pointer touch-none"></canvas>
+    </div>
+  </main>
+
+  <!-- ================= APPLICATION JAVASCRIPT ================= -->
+  <script>
+    const { Engine, World, Bodies, Body, Events } = Matter;
+
+    // Distinct sound wave profiles per level so every tier sounds unique!
+    const DISTINCT_SOUND_TYPES = [
+      { id: "bubble", name: "🫧 فقاعة (Bubble)" },
+      { id: "coin", name: "🪙 عملة (Coin)" },
+      { id: "boing", name: "🏀 قفزة مطاطية (Boing)" },
+      { id: "laser", name: "⚡ ليزر (Laser)" },
+      { id: "bell", name: "🔔 جرس رنان (Bell)" },
+      { id: "chord", name: "🎸 وتر طاقة (Power Chord)" },
+      { id: "charge", name: "🚀 شحن التوربو (Turbo Charge)" },
+      { id: "royal", name: "👑 سيمفونية النهائي (Royal Finale)" }
+    ];
+
+    // ================== 1. STATE & PRESETS ==================
+    const THEME_PRESETS = {
+      phones: [
+        { label: "WIKO", color: "#00b894", borderColor: "#55efc4", textColor: "#ffffff", radius: 32, shapeStyle: "textOnly", soundType: "bubble", img: null, customAudioBuffer: null },
+        { label: "Sony", color: "#22c55e", borderColor: "#bbf7d0", textColor: "#ffffff", radius: 44, shapeStyle: "circle", soundType: "coin", img: null, customAudioBuffer: null },
+        { label: "MI", color: "#ff6700", borderColor: "#fdba74", textColor: "#ffffff", radius: 58, shapeStyle: "square", soundType: "boing", img: null, customAudioBuffer: null },
+        { label: "Huawei", color: "#e11d48", borderColor: "#fda4af", textColor: "#ffffff", radius: 74, shapeStyle: "circle", soundType: "laser", img: null, customAudioBuffer: null },
+        { label: "SAMSUNG", color: "#1d4ed8", borderColor: "#93c5fd", textColor: "#ffffff", radius: 92, shapeStyle: "oval", soundType: "bell", img: null, customAudioBuffer: null },
+        { label: " Apple", color: "#f8fafc", borderColor: "#cbd5e1", textColor: "#0f172a", radius: 114, shapeStyle: "circle", soundType: "chord", img: null, customAudioBuffer: null },
+        { label: "G", color: "#eab308", borderColor: "#fef08a", textColor: "#ffffff", radius: 140, shapeStyle: "google", soundType: "charge", img: null, customAudioBuffer: null },
+        { label: "NOKIA 3310", color: "#3b82f6", borderColor: "#fde047", textColor: "#ffffff", radius: 155, shapeStyle: "nokia", soundType: "royal", img: null, customAudioBuffer: null }
+      ],
+      football: [
+        { label: "⚽", color: "#16a34a", borderColor: "#86efac", textColor: "#ffffff", radius: 32, shapeStyle: "circle", soundType: "bubble", img: null, customAudioBuffer: null },
+        { label: "AJAX", color: "#dc2626", borderColor: "#fca5a5", textColor: "#ffffff", radius: 44, shapeStyle: "circle", soundType: "coin", img: null, customAudioBuffer: null },
+        { label: "ARSENAL", color: "#ef4444", borderColor: "#fde047", textColor: "#ffffff", radius: 58, shapeStyle: "circle", soundType: "boing", img: null, customAudioBuffer: null },
+        { label: "CHELSEA", color: "#1d4ed8", borderColor: "#93c5fd", textColor: "#ffffff", radius: 74, shapeStyle: "circle", soundType: "laser", img: null, customAudioBuffer: null },
+        { label: "BAYERN", color: "#b91c1c", borderColor: "#ffffff", textColor: "#ffffff", radius: 92, shapeStyle: "circle", soundType: "bell", img: null, customAudioBuffer: null },
+        { label: "BARCA", color: "#1e3a8a", borderColor: "#f59e0b", textColor: "#fde047", radius: 114, shapeStyle: "circle", soundType: "chord", img: null, customAudioBuffer: null },
+        { label: "REAL 👑", color: "#f8fafc", borderColor: "#eab308", textColor: "#0f172a", radius: 140, shapeStyle: "circle", soundType: "charge", img: null, customAudioBuffer: null },
+        { label: "🏆 GOAT", color: "#eab308", borderColor: "#fef08a", textColor: "#000000", radius: 155, shapeStyle: "circle", soundType: "royal", img: null, customAudioBuffer: null }
+      ],
+      crypto: [
+        { label: "1¢", color: "#78350f", borderColor: "#d97706", textColor: "#ffffff", radius: 32, shapeStyle: "circle", soundType: "bubble", img: null, customAudioBuffer: null },
+        { label: "$1", color: "#15803d", borderColor: "#86efac", textColor: "#ffffff", radius: 44, shapeStyle: "circle", soundType: "coin", img: null, customAudioBuffer: null },
+        { label: "DOGE 🐕", color: "#ca8a04", borderColor: "#fef08a", textColor: "#ffffff", radius: 58, shapeStyle: "circle", soundType: "boing", img: null, customAudioBuffer: null },
+        { label: "SOL", color: "#9333ea", borderColor: "#5eead4", textColor: "#ffffff", radius: 74, shapeStyle: "circle", soundType: "laser", img: null, customAudioBuffer: null },
+        { label: "BNB", color: "#eab308", borderColor: "#fef08a", textColor: "#000000", radius: 92, shapeStyle: "circle", soundType: "bell", img: null, customAudioBuffer: null },
+        { label: "ETH 💎", color: "#4f46e5", borderColor: "#c7d2fe", textColor: "#ffffff", radius: 114, shapeStyle: "circle", soundType: "chord", img: null, customAudioBuffer: null },
+        { label: "BTC ₿", color: "#f97316", borderColor: "#fde047", textColor: "#ffffff", radius: 140, shapeStyle: "circle", soundType: "charge", img: null, customAudioBuffer: null },
+        { label: "🏦 BILLION", color: "#10b981", borderColor: "#fde047", textColor: "#ffffff", radius: 155, shapeStyle: "circle", soundType: "royal", img: null, customAudioBuffer: null }
+      ],
+      fruits: [
+        { label: "🍒", color: "#dc2626", borderColor: "#fca5a5", textColor: "#ffffff", radius: 32, shapeStyle: "circle", soundType: "bubble", img: null, customAudioBuffer: null },
+        { label: "🍓", color: "#f43f5e", borderColor: "#fda4af", textColor: "#ffffff", radius: 44, shapeStyle: "circle", soundType: "coin", img: null, customAudioBuffer: null },
+        { label: "🍇", color: "#9333ea", borderColor: "#d8b4fe", textColor: "#ffffff", radius: 58, shapeStyle: "circle", soundType: "boing", img: null, customAudioBuffer: null },
+        { label: "🍊", color: "#f97316", borderColor: "#fdba74", textColor: "#ffffff", radius: 74, shapeStyle: "circle", soundType: "laser", img: null, customAudioBuffer: null },
+        { label: "🍎", color: "#ef4444", borderColor: "#fecaca", textColor: "#ffffff", radius: 92, shapeStyle: "circle", soundType: "bell", img: null, customAudioBuffer: null },
+        { label: "🍍", color: "#eab308", borderColor: "#fef08a", textColor: "#000000", radius: 114, shapeStyle: "circle", soundType: "chord", img: null, customAudioBuffer: null },
+        { label: "🍈", color: "#84cc16", borderColor: "#d9f99d", textColor: "#000000", radius: 140, shapeStyle: "circle", soundType: "charge", img: null, customAudioBuffer: null },
+        { label: "🍉", color: "#16a34a", borderColor: "#ef4444", textColor: "#ffffff", radius: 155, shapeStyle: "circle", soundType: "royal", img: null, customAudioBuffer: null }
+      ]
+    };
+
+    let tiers = JSON.parse(JSON.stringify(THEME_PRESETS.phones));
+
+    const config = {
+      showTopChain: true,
+      flaskShape: "circle",
+      borderStyle: "rainbow",
+      borderColor1: "#ec4899",
+      borderColor2: "#3b82f6",
+      borderWidth: 12,
+      glowSize: 18,
+      bgColor1: "#000000",
+      shockwaveColor: "#fef08a",
+      finalRayColor: "#fde047",
+      finalGlowIntensity: 1.0,
+      finalGrowthMultiplier: 1.45, // Grows to 1.45x when reaching Final Form!
+      finalTouchGrow: true,        // Two final balls touching grow slightly + burst light without disappearing
+      captionText: "Will the Ball Merge Into Final Form?",
+      watermarkText: "BALLSIMULATOR.COM",
+      masterVolume: 0.85,
+      muted: false,
+      soundMode: "distinct",
+      bounceSound: true,
+      autoBounceStrength: 0.75,    // Continuous energetic jumping
+      bounciness: 0.88,
+      gravity: 1.1,
+      spawnRate: 550,
+      autoSpawn: true
+    };
+
+    // ================== 2. WEB AUDIO SYNTHESIS (iOS SAFARI COMPATIBLE) ==================
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContextClass();
+    const masterGain = audioCtx.createGain();
+
+    masterGain.connect(audioCtx.destination);
+
+    let globalCustomAudioBuffer = null;
+    let finalCustomAudioBuffer = null;
+    let lastBounceSoundTime = 0;
+    let iosAudioUnlocked = false;
+
+    function ensureAudioReady() {
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+      if (!iosAudioUnlocked) {
+        // Play silent 1-sample buffer to unlock iOS Safari WebAudio
+        try {
+          const buffer = audioCtx.createBuffer(1, 1, 22050);
+          const source = audioCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioCtx.destination);
+          source.start(0);
+          iosAudioUnlocked = true;
+          const unlockBtn = document.getElementById("iosAudioUnlockBtn");
+          if (unlockBtn) unlockBtn.classList.add("hidden");
+        } catch (e) {}
+      }
+      masterGain.gain.value = config.muted ? 0 : config.masterVolume;
+    }
+
+    // Automatically unlock audio on first touchstart or click anywhere on iPhone/iPad
+    window.addEventListener("touchstart", ensureAudioReady, { passive: true, once: true });
+    window.addEventListener("click", ensureAudioReady, { passive: true, once: true });
+    document.getElementById("iosAudioUnlockBtn").addEventListener("click", () => {
+      ensureAudioReady();
+      playMergeSound(1);
+    });
+
+    async function decodeAudioFile(file) {
+      ensureAudioReady();
+      const arrayBuf = await file.arrayBuffer();
+      return await new Promise((resolve, reject) => {
+        audioCtx.decodeAudioData(arrayBuf, resolve, reject);
+      });
+    }
+
+    function playDecodedBuffer(buffer, playbackRate = 1.0) {
+      if (!buffer || config.muted) return;
+      ensureAudioReady();
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.playbackRate.value = playbackRate;
+      src.connect(masterGain);
+      src.start(0);
+    }
+
+    function playBounceTick(speed) {
+      if (!config.bounceSound || config.muted) return;
+      const nowMs = performance.now();
+      if (nowMs - lastBounceSoundTime < 65) return;
+      lastBounceSoundTime = nowMs;
+
+      ensureAudioReady();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      const pitch = Math.min(520, 160 + speed * 18);
+      osc.frequency.setValueAtTime(pitch, now);
+      osc.frequency.exponentialRampToValueAtTime(75, now + 0.045);
+      g.gain.setValueAtTime(Math.min(0.12, speed * 0.008), now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+
+    function playDistinctSynthByType(type, tierIdx) {
+      ensureAudioReady();
+      const now = audioCtx.currentTime;
+      const baseFreq = 200 + tierIdx * 48;
+
+      if (type === "bubble") {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(baseFreq * 0.8, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 2.1, now + 0.12);
+        g.gain.setValueAtTime(0.35, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+        osc.connect(g); g.connect(masterGain);
+        osc.start(now); osc.stop(now + 0.14);
+      } else if (type === "coin") {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = "square";
+        osc.frequency.setValueAtTime(587.33, now);
+        osc.frequency.setValueAtTime(880, now + 0.065);
+        g.gain.setValueAtTime(0.22, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(g); g.connect(masterGain);
+        osc.start(now); osc.stop(now + 0.26);
+      } else if (type === "boing") {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.11);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.24);
+        g.gain.setValueAtTime(0.4, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(g); g.connect(masterGain);
+        osc.start(now); osc.stop(now + 0.26);
+      } else if (type === "laser") {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(920, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.19);
+        g.gain.setValueAtTime(0.26, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(g); g.connect(masterGain);
+        osc.start(now); osc.stop(now + 0.21);
+      } else if (type === "bell") {
+        [1, 2.4].forEach(mult => {
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(523.25 * mult, now);
+          g.gain.setValueAtTime(0.22 / mult, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+          osc.connect(g); g.connect(masterGain);
+          osc.start(now); osc.stop(now + 0.43);
+        });
+      } else if (type === "chord") {
+        [330, 415.3, 493.88].forEach(f => {
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(f, now);
+          g.gain.setValueAtTime(0.18, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(g); g.connect(masterGain);
+          osc.start(now); osc.stop(now + 0.36);
+        });
+      } else if (type === "charge") {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.28);
+        g.gain.setValueAtTime(0.3, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.connect(g); g.connect(masterGain);
+        osc.start(now); osc.stop(now + 0.31);
+      } else {
+        // Royal / Nokia Final Fanfare
+        const notes = [659.25, 587.33, 369.99, 415.30, 554.37, 493.88, 293.66, 329.63, 493.88, 440.00, 277.18, 329.63, 440.00];
+        const durs = [0.11, 0.11, 0.22, 0.22, 0.11, 0.11, 0.22, 0.22, 0.11, 0.11, 0.22, 0.22, 0.5];
+        let t = now;
+        notes.forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = "square";
+          osc.frequency.setValueAtTime(freq * 1.5, t);
+          g.gain.setValueAtTime(0.24, t);
+          g.gain.exponentialRampToValueAtTime(0.004, t + durs[i] * 0.95);
+          osc.connect(g); g.connect(masterGain);
+          osc.start(t); osc.stop(t + durs[i]);
+          t += durs[i];
+        });
+      }
+    }
+
+    function playMergeSound(tierIdx) {
+      if (config.muted) return;
+      ensureAudioReady();
+
+      const isFinal = tierIdx === tiers.length - 1;
+      const tier = tiers[tierIdx];
+
+      // 1. Custom per-tier uploaded MP3
+      if (tier && tier.customAudioBuffer) {
+        playDecodedBuffer(tier.customAudioBuffer, 1.0);
+        return;
+      }
+      // 2. Final Form custom uploaded MP3
+      if (isFinal && finalCustomAudioBuffer) {
+        playDecodedBuffer(finalCustomAudioBuffer, 1.0);
+        return;
+      }
+      // 3. Global custom uploaded MP3
+      if (globalCustomAudioBuffer) {
+        const rate = 0.8 + (tierIdx / Math.max(1, tiers.length - 1)) * 0.55;
+        playDecodedBuffer(globalCustomAudioBuffer, rate);
+        return;
+      }
+
+      // 4. Built-in Sound Modes
+      if (config.soundMode === "distinct") {
+        const soundType = tier?.soundType || DISTINCT_SOUND_TYPES[tierIdx % DISTINCT_SOUND_TYPES.length].id;
+        playDistinctSynthByType(isFinal ? "royal" : soundType, tierIdx);
+      } else if (config.soundMode === "scale") {
+        const scaleFreqs = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25];
+        const freq = scaleFreqs[tierIdx % scaleFreqs.length];
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.25, now + 0.22);
+        g.gain.setValueAtTime(0.35, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.connect(g); g.connect(masterGain);
+        osc.start(now); osc.stop(now + 0.25);
+      } else {
+        // "Wow" formant sweep
+        const now = audioCtx.currentTime;
+        const baseFreq = 200 + tierIdx * 45;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(baseFreq * 0.7, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.09);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.9, now + 0.23);
+        g.gain.setValueAtTime(0.01, now);
+        g.gain.linearRampToValueAtTime(0.38, now + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.connect(g); g.connect(masterGain);
+        osc.start(now); osc.stop(now + 0.25);
+      }
+    }
+
+    // ================== 3. UI TABS & LEVEL BUILDER ==================
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-pane").forEach(p => p.classList.add("hidden"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.remove("hidden");
+      });
+    });
+
+    function renderChainPreviewBar() {
+      const bar = document.getElementById("chainPreviewBar");
+      bar.innerHTML = "";
+      tiers.forEach((t, i) => {
+        const pill = document.createElement("div");
+        pill.className = "flex items-center gap-1 shrink-0";
+        pill.innerHTML = `
+          <div class="px-2.5 py-1 rounded-full text-[11px] font-extrabold border flex items-center gap-1 shadow-sm"
+               style="background:${t.color}; border-color:${t.borderColor}; color:${t.textColor}">
+            <span>${i + 1}.</span>
+            <span>${t.label.slice(0, 8)}</span>
+          </div>
+          ${i < tiers.length - 1 ? '<i class="fa-solid fa-chevron-left text-[10px] text-gray-500"></i>' : ''}
+        `;
+        bar.appendChild(pill);
+      });
+    }
+
+    function renderLevelsUI() {
+      renderChainPreviewBar();
+      const container = document.getElementById("levelsListContainer");
+      container.innerHTML = "";
+
+      tiers.forEach((tier, idx) => {
+        const isLast = idx === tiers.length - 1;
+        if (!tier.soundType) {
+          tier.soundType = DISTINCT_SOUND_TYPES[idx % DISTINCT_SOUND_TYPES.length].id;
+        }
+
+        const soundOptionsHtml = DISTINCT_SOUND_TYPES.map(st =>
+          `<option value="${st.id}" ${tier.soundType === st.id ? 'selected' : ''}>${st.name}</option>`
+        ).join("");
+
+        const card = document.createElement("div");
+        card.className = `p-3 rounded-xl border transition space-y-2.5 ${
+          isLast ? "bg-gradient-to-br from-amber-950/40 to-[#181e2e] border-amber-500/60" : "bg-[#181e2e] border-gray-700/70"
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-extrabold"
+                    style="background:${tier.color}; color:${tier.textColor}; border:2px solid ${tier.borderColor}">
+                ${idx + 1}
+              </span>
+              <span class="text-xs font-bold ${isLast ? 'text-amber-300' : 'text-gray-200'}">
+                ${isLast ? '👑 المستوى الأخير (يكبر، يشع بالضوء ويبقى فالقارورة!)' : `المستوى ${idx + 1} ← كيندمج لـ ${tiers[idx + 1]?.label || ''}`}
+              </span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button class="px-2 py-1 bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 text-blue-300 rounded text-[11px] font-bold" data-spawn-idx="${idx}" title="أنزل هاد الكرة دابا">
+                + أنزل
+              </button>
+              ${tiers.length > 2 ? `
+                <button class="p-1 text-red-400 hover:bg-red-500/20 rounded text-xs" data-del-idx="${idx}" title="حذف المستوى">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Row 1: Name & Colors -->
+          <div class="grid grid-cols-12 gap-2 items-center">
+            <div class="col-span-6">
+              <label class="text-[10px] text-gray-400 block">الاسم أو الإيموجي:</label>
+              <input type="text" value="${tier.label}" data-idx="${idx}" class="tier-label-input w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold outline-none" />
+            </div>
+            <div class="col-span-2">
+              <label class="text-[10px] text-gray-400 block text-center">الكرة</label>
+              <input type="color" value="${tier.color}" data-idx="${idx}" class="tier-bg-input w-full h-7" />
+            </div>
+            <div class="col-span-2">
+              <label class="text-[10px] text-gray-400 block text-center">الإطار</label>
+              <input type="color" value="${tier.borderColor}" data-idx="${idx}" class="tier-border-input w-full h-7" />
+            </div>
+            <div class="col-span-2">
+              <label class="text-[10px] text-gray-400 block text-center">النص</label>
+              <input type="color" value="${tier.textColor}" data-idx="${idx}" class="tier-text-input w-full h-7" />
+            </div>
+          </div>
+
+          <!-- Row 2: Size Slider & Shape Style -->
+          <div class="grid grid-cols-12 gap-2 items-center">
+            <div class="col-span-7">
+              <label class="text-[10px] text-gray-400 flex justify-between">
+                <span>الحجم الأساسي (Radius):</span>
+                <span class="text-white font-bold tier-rad-val-${idx}">${tier.radius}px ${isLast ? `(كيكبر لـ ${Math.round(tier.radius * config.finalGrowthMultiplier)}px)` : ''}</span>
+              </label>
+              <input type="range" min="22" max="210" value="${tier.radius}" data-idx="${idx}" class="tier-radius-input w-full accent-blue-500" />
+            </div>
+            <div class="col-span-5">
+              <label class="text-[10px] text-gray-400 block">شكل الرسم:</label>
+              <select data-idx="${idx}" class="tier-style-select w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-[11px] text-white outline-none">
+                <option value="circle" ${tier.shapeStyle === 'circle' ? 'selected' : ''}>🟢 كرة دائرية</option>
+                <option value="square" ${tier.shapeStyle === 'square' ? 'selected' : ''}>🟧 شعار مربع (MI)</option>
+                <option value="oval" ${tier.shapeStyle === 'oval' ? 'selected' : ''}>🔵 بيضاوي (Samsung)</option>
+                <option value="textOnly" ${tier.shapeStyle === 'textOnly' ? 'selected' : ''}>🔤 نص عائم (WIKO)</option>
+                <option value="google" ${tier.shapeStyle === 'google' ? 'selected' : ''}>🌈 شعار G ملون</option>
+                <option value="nokia" ${tier.shapeStyle === 'nokia' ? 'selected' : ''}>📱 هاتف نوكيا 3310</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Row 3: Distinct Sound Selector + Custom Image & Audio Upload -->
+          <div class="grid grid-cols-12 gap-1.5 items-center pt-1.5 border-t border-gray-800/80">
+            <div class="col-span-5 flex items-center gap-1">
+              <select data-sound-type-idx="${idx}" class="tier-sound-select flex-1 bg-gray-900 border border-gray-700 rounded-lg px-1.5 py-1 text-[10px] text-emerald-300 outline-none">
+                ${soundOptionsHtml}
+              </select>
+              <button data-test-tier-sound="${idx}" class="px-2 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded text-[11px]" title="سمع صوت هاد المستوى">
+                🔊
+              </button>
+            </div>
+
+            <div class="col-span-4">
+              <label class="flex items-center justify-center gap-1 text-[10px] text-gray-300 bg-gray-900 hover:bg-gray-800 px-2 py-1 rounded-lg border border-gray-700 cursor-pointer truncate">
+                <i class="fa-solid fa-image text-blue-400"></i>
+                <span class="truncate">${tier.img ? '✅ صورة' : 'صورة PNG'}</span>
+                <input type="file" accept="image/*" data-idx="${idx}" class="tier-img-input hidden" />
+              </label>
+            </div>
+
+            <div class="col-span-3">
+              <label class="flex items-center justify-center gap-1 text-[10px] text-gray-300 bg-gray-900 hover:bg-gray-800 px-2 py-1 rounded-lg border border-gray-700 cursor-pointer truncate">
+                <i class="fa-solid fa-music text-purple-400"></i>
+                <span class="truncate">${tier.customAudioName ? '✅ MP3' : 'صوت MP3'}</span>
+                <input type="file" accept="audio/*" data-audio-idx="${idx}" class="tier-audio-input hidden" />
+              </label>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      // Bindings
+      container.querySelectorAll(".tier-label-input").forEach(el => {
+        el.oninput = e => {
+          tiers[e.target.dataset.idx].label = e.target.value;
+          renderChainPreviewBar();
+        };
+      });
+      container.querySelectorAll(".tier-bg-input").forEach(el => {
+        el.oninput = e => {
+          tiers[e.target.dataset.idx].color = e.target.value;
+          renderChainPreviewBar();
+        };
+      });
+      container.querySelectorAll(".tier-border-input").forEach(el => {
+        el.oninput = e => {
+          tiers[e.target.dataset.idx].borderColor = e.target.value;
+          renderChainPreviewBar();
+        };
+      });
+      container.querySelectorAll(".tier-text-input").forEach(el => {
+        el.oninput = e => {
+          tiers[e.target.dataset.idx].textColor = e.target.value;
+          renderChainPreviewBar();
+        };
+      });
+      container.querySelectorAll(".tier-radius-input").forEach(el => {
+        el.oninput = e => {
+          const i = Number(e.target.dataset.idx);
+          const isLast = i === tiers.length - 1;
+          tiers[i].radius = Number(e.target.value);
+          document.querySelector(`.tier-rad-val-${i}`).textContent =
+            `${e.target.value}px ${isLast ? `(كيكبر لـ ${Math.round(tiers[i].radius * config.finalGrowthMultiplier)}px)` : ''}`;
+        };
+      });
+      container.querySelectorAll(".tier-style-select").forEach(el => {
+        el.onchange = e => { tiers[e.target.dataset.idx].shapeStyle = e.target.value; };
+      });
+      container.querySelectorAll(".tier-sound-select").forEach(el => {
+        el.onchange = e => {
+          const i = Number(e.target.dataset.soundTypeIdx);
+          tiers[i].soundType = e.target.value;
+          playMergeSound(i);
+        };
+      });
+      container.querySelectorAll("[data-test-tier-sound]").forEach(btn => {
+        btn.onclick = () => playMergeSound(Number(btn.dataset.testTierSound));
+      });
+      container.querySelectorAll(".tier-img-input").forEach(el => {
+        el.onchange = e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const idx = Number(e.target.dataset.idx);
+          const img = new Image();
+          img.onload = () => {
+            tiers[idx].img = img;
+            renderLevelsUI();
+          };
+          img.src = URL.createObjectURL(file);
+        };
+      });
+      container.querySelectorAll(".tier-audio-input").forEach(el => {
+        el.onchange = async e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const idx = Number(e.target.dataset.audioIdx);
+          tiers[idx].customAudioBuffer = await decodeAudioFile(file);
+          tiers[idx].customAudioName = file.name;
+          renderLevelsUI();
+          playMergeSound(idx);
+        };
+      });
+      container.querySelectorAll("[data-spawn-idx]").forEach(btn => {
+        btn.onclick = () => {
+          const idx = Number(btn.dataset.spawnIdx);
+          const isFinal = idx === tiers.length - 1;
+          const b = createBall(centerX + (Math.random() - 0.5) * 30, isFinal ? centerY - 120 : 260, idx, isFinal);
+          if (isFinal && b) {
+            triggerMergeEffects(b.position.x, b.position.y, idx);
+            playMergeSound(idx);
+          }
+        };
+      });
+      container.querySelectorAll("[data-del-idx]").forEach(btn => {
+        btn.onclick = () => {
+          const idx = Number(btn.dataset.delIdx);
+          tiers.splice(idx, 1);
+          renderLevelsUI();
+          initSimulation();
+        };
+      });
+    }
+
+    // ================== 4. PHYSICS ENGINE, BOUNCING & GIANT FINAL GROWTH ==================
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const centerX = 540;
+    const centerY = 1060;
+    const flaskRadius = 445;
+    const neckHalfWidth = 98;
+    const neckTopY = 260;
+    const gapAngle = Math.asin(neckHalfWidth / flaskRadius);
+
+    let engine, world;
+    let balls = [];
+    let shockwaves = [];
+    let particles = [];
+    let screenFlashAlpha = 0;
+    let rainbowHueOffset = 0;
+    let godRayAngle = 0;
+    let spawnTimer = null;
+    let highestTierReached = 0;
+
+    function buildContainerWalls() {
+      const walls = [];
+      const wallOpts = { isStatic: true, restitution: 0.9, friction: 0.005 };
+
+      if (config.flaskShape === "circle") {
+        const steps = 64;
+        const startAngle = -Math.PI / 2 + gapAngle;
+        const endAngle = (3 * Math.PI) / 2 - gapAngle;
+
+        for (let i = 0; i < steps; i++) {
+          const a1 = startAngle + (i / steps) * (endAngle - startAngle);
+          const a2 = startAngle + ((i + 1) / steps) * (endAngle - startAngle);
+          const x1 = centerX + Math.cos(a1) * flaskRadius;
+          const y1 = centerY + Math.sin(a1) * flaskRadius;
+          const x2 = centerX + Math.cos(a2) * flaskRadius;
+          const y2 = centerY + Math.sin(a2) * flaskRadius;
+          const cx = (x1 + x2) / 2;
+          const cy = (y1 + y2) / 2;
+          const len = Math.hypot(x2 - x1, y2 - y1);
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+
+          walls.push(Bodies.rectangle(cx, cy, len + 14, 32, { ...wallOpts, angle }));
+        }
+
+        const neckBottomY = centerY - Math.cos(gapAngle) * flaskRadius;
+        const neckH = neckBottomY - neckTopY;
+        walls.push(
+          Bodies.rectangle(centerX - neckHalfWidth, neckTopY + neckH / 2, 24, neckH, wallOpts),
+          Bodies.rectangle(centerX + neckHalfWidth, neckTopY + neckH / 2, 24, neckH, wallOpts)
+        );
+      } else if (config.flaskShape === "cup") {
+        const cupW = 425;
+        const topY = 400;
+        const arcCenterY = 1040;
+        walls.push(
+          Bodies.rectangle(centerX - cupW, (topY + arcCenterY) / 2, 32, arcCenterY - topY, wallOpts),
+          Bodies.rectangle(centerX + cupW, (topY + arcCenterY) / 2, 32, arcCenterY - topY, wallOpts)
+        );
+        const steps = 32;
+        for (let i = 0; i < steps; i++) {
+          const a1 = (i / steps) * Math.PI;
+          const a2 = ((i + 1) / steps) * Math.PI;
+          const x1 = centerX + Math.cos(a1) * cupW;
+          const y1 = arcCenterY + Math.sin(a1) * cupW;
+          const x2 = centerX + Math.cos(a2) * cupW;
+          const y2 = arcCenterY + Math.sin(a2) * cupW;
+          walls.push(
+            Bodies.rectangle((x1 + x2) / 2, (y1 + y2) / 2, Math.hypot(x2 - x1, y2 - y1) + 14, 32, {
+              ...wallOpts,
+              angle: Math.atan2(y2 - y1, x2 - x1)
+            })
+          );
+        }
+      } else if (config.flaskShape === "box") {
+        const boxW = 430;
+        const topY = 450;
+        const botY = 1430;
+        const shoulderW = boxW - neckHalfWidth;
+        walls.push(
+          Bodies.rectangle(centerX - neckHalfWidth, (neckTopY + topY) / 2, 24, topY - neckTopY, wallOpts),
+          Bodies.rectangle(centerX + neckHalfWidth, (neckTopY + topY) / 2, 24, topY - neckTopY, wallOpts),
+          Bodies.rectangle(centerX - neckHalfWidth - shoulderW / 2, topY, shoulderW + 20, 28, wallOpts),
+          Bodies.rectangle(centerX + neckHalfWidth + shoulderW / 2, topY, shoulderW + 20, 28, wallOpts),
+          Bodies.rectangle(centerX - boxW, (topY + botY) / 2, 32, botY - topY, wallOpts),
+          Bodies.rectangle(centerX + boxW, (topY + botY) / 2, 32, botY - topY, wallOpts),
+          Bodies.rectangle(centerX, botY, boxW * 2 + 32, 32, wallOpts)
+        );
+      }
+
+      return walls;
+    }
+
+    function initSimulation() {
+      if (spawnTimer) clearInterval(spawnTimer);
+      engine = Engine.create();
+      engine.gravity.y = config.gravity;
+      world = engine.world;
+      balls = [];
+      shockwaves = [];
+      particles = [];
+      screenFlashAlpha = 0;
+      highestTierReached = 0;
+
+      World.add(world, buildContainerWalls());
+
+      // Collision handling: Merge lower tiers, AND keep Final Form balls forever!
+      Events.on(engine, "collisionStart", event => {
+        for (const pair of event.pairs) {
+          const bA = pair.bodyA;
+          const bB = pair.bodyB;
+
+          // Play subtle bounce sound on fast impacts
+          const relSpeed = Math.hypot(
+            (bA.velocity?.x || 0) - (bB.velocity?.x || 0),
+            (bA.velocity?.y || 0) - (bB.velocity?.y || 0)
+          );
+          if (relSpeed > 4.5) {
+            playBounceTick(relSpeed);
+          }
+
+          if (bA.tierIndex !== undefined && bB.tierIndex !== undefined) {
+            if (bA.tierIndex === bB.tierIndex && !bA.merged && !bB.merged) {
+              const currentIdx = bA.tierIndex;
+              const nextIdx = currentIdx + 1;
+
+              // Case 1: Normal merge (including merging into the Final Form!)
+              if (nextIdx < tiers.length) {
+                bA.merged = true;
+                bB.merged = true;
+                const mx = (bA.position.x + bB.position.x) / 2;
+                const my = (bA.position.y + bB.position.y) / 2;
+
+                World.remove(world, bA);
+                World.remove(world, bB);
+                balls = balls.filter(b => b !== bA && b !== bB);
+
+                // Create next tier ball (if nextIdx is Final Form, it will smoothly grow & stay!)
+                const newBall = createBall(mx, my, nextIdx, true);
+                if (newBall) {
+                  // Give energetic upward pop on merge
+                  Body.setVelocity(newBall, {
+                    x: (Math.random() - 0.5) * 8,
+                    y: -Math.min(14, 6 + nextIdx * 1.1)
+                  });
+                }
+
+                triggerMergeEffects(mx, my, nextIdx);
+                playMergeSound(nextIdx);
+              }
+              // Case 2: Two FINAL FORM balls touch each other!
+              // They DO NOT disappear and the game DOES NOT end!
+              else if (currentIdx === tiers.length - 1) {
+                const nowMs = performance.now();
+                if (!bA.lastFinalTouch || nowMs - bA.lastFinalTouch > 900) {
+                  bA.lastFinalTouch = nowMs;
+                  bB.lastFinalTouch = nowMs;
+
+                  const mx = (bA.position.x + bB.position.x) / 2;
+                  const my = (bA.position.y + bB.position.y) / 2;
+
+                  // Optional extra growth boost when two Final Form balls collide (up to 2.25x cap)
+                  if (config.finalTouchGrow) {
+                    [bA, bB].forEach(fb => {
+                      const maxAllowedRadius = tiers[currentIdx].radius * 2.15;
+                      if (fb.targetRadius < maxAllowedRadius) {
+                        fb.targetRadius = Math.min(maxAllowedRadius, fb.targetRadius * 1.12);
+                      }
+                    });
+                  }
+
+                  // Super energetic bounce apart + light explosion
+                  Body.setVelocity(bA, { x: -10, y: -13 });
+                  Body.setVelocity(bB, { x: 10, y: -13 });
+                  triggerMergeEffects(mx, my, currentIdx);
+                  playMergeSound(currentIdx);
+                }
+              }
+            }
+          }
+        }
+      });
+
+      setupSpawner();
+      updateStatsUI();
+    }
+
+    function createBall(x, y, tierIndex, isMergedSpawn = false) {
+      if (!world) {
+        initSimulation();
+      }
+      const t = tiers[tierIndex];
+      if (!t || !world) return null;
+
+      if (tierIndex > highestTierReached) {
+        highestTierReached = tierIndex;
+      }
+
+      const isFinal = tierIndex === tiers.length - 1;
+      // If it's the Final Form, it starts at base radius and smoothly expands to (radius * finalGrowthMultiplier)!
+      const initialRadius = t.radius;
+      const targetRadius = isFinal
+        ? Math.round(t.radius * config.finalGrowthMultiplier)
+        : t.radius;
+
+      const body = Bodies.circle(x, y, initialRadius, {
+        restitution: config.bounciness,
+        friction: 0.005,
+        frictionAir: 0.001,
+        density: isFinal ? 0.0035 : 0.002
+      });
+
+      body.tierIndex = tierIndex;
+      body.merged = false;
+      body.isFinalForm = isFinal;
+      body.currentRadius = initialRadius;
+      body.targetRadius = targetRadius;
+      body.visualPopScale = isMergedSpawn ? 0.65 : 1.0;
+
+      balls.push(body);
+      World.add(world, body);
+      updateStatsUI();
+      return body;
+    }
+
+    function triggerMergeEffects(x, y, tierIdx) {
+      const t = tiers[tierIdx];
+      const isFinal = tierIdx === tiers.length - 1;
+
+      if (isFinal) {
+        screenFlashAlpha = 0.75 * config.finalGlowIntensity;
+        // Make all other balls in the flask jump excitedly when Final Form appears!
+        balls.forEach(b => {
+          if (!b.isFinalForm) {
+            Body.setVelocity(b, {
+              x: (Math.random() - 0.5) * 16,
+              y: -8 - Math.random() * 10
+            });
+          }
+        });
+      }
+
+      const rings = isFinal ? 6 : 2;
+      for (let r = 0; r < rings; r++) {
+        shockwaves.push({
+          x,
+          y,
+          radius: t.radius * (0.4 + r * 0.35),
+          speed: isFinal ? 9 + r * 2.5 : 5.5 + r * 1.5,
+          alpha: 1.0,
+          color: isFinal ? config.finalRayColor : config.shockwaveColor,
+          isTargetRing: r === 0
+        });
+      }
+
+      const pCount = isFinal ? Math.floor(55 * config.finalGlowIntensity) : 14;
+      for (let i = 0; i < pCount; i++) {
+        const angle = (Math.PI * 2 * i) / pCount + Math.random() * 0.3;
+        const speed = 3 + Math.random() * (isFinal ? 16 : 7);
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: isFinal ? 5 + Math.random() * 8 : 4 + Math.random() * 5,
+          alpha: 1.0,
+          color: i % 2 === 0 ? t.color : (isFinal ? config.finalRayColor : config.shockwaveColor)
+        });
+      }
+    }
+
+    function setupSpawner() {
+      if (spawnTimer) clearInterval(spawnTimer);
+      if (!config.autoSpawn) return;
+
+      spawnTimer = setInterval(() => {
+        // Endless mode: If too many small balls accumulate, remove oldest tier-0 ball so simulation never clogs
+        if (balls.length > 85) {
+          const oldestSmall = balls.find(b => b.tierIndex === 0 && !b.isFinalForm);
+          if (oldestSmall) {
+            World.remove(world, oldestSmall);
+            balls = balls.filter(b => b !== oldestSmall);
+          } else {
+            return;
+          }
+        }
+        const jitter = (Math.random() - 0.5) * 24;
+        const dropY = config.flaskShape === "cup" ? 320 : neckTopY + 30;
+        const b = createBall(centerX + jitter, dropY, 0, false);
+        if (b) {
+          Body.setVelocity(b, { x: (Math.random() - 0.5) * 3, y: 2 });
+        }
+      }, config.spawnRate);
+    }
+
+    function updateStatsUI() {
+      document.getElementById("ballCountStat").textContent = balls.length;
+      const topTier = tiers[highestTierReached];
+      document.getElementById("highestTierStat").textContent = topTier ? `${highestTierReached + 1} (${topTier.label})` : "1";
+      const finalBallsCount = balls.filter(b => b.isFinalForm).length;
+      document.getElementById("finalCountStat").textContent = finalBallsCount;
+    }
+
+    canvas.addEventListener("pointerdown", e => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const clickX = (e.clientX - rect.left) * scaleX;
+      const spawnX = config.flaskShape === "cup"
+        ? Math.max(centerX - 300, Math.min(centerX + 300, clickX))
+        : centerX + (Math.random() - 0.5) * 24;
+      const dropY = config.flaskShape === "cup" ? 320 : neckTopY + 30;
+      createBall(spawnX, dropY, 0, false);
+    });
+
+    // ================== 5. RENDERING & CONTINUOUS PHYSICS STEP (60 FPS) ==================
+    function drawNokiaPhone(ctx, r) {
+      ctx.save();
+      const w = r * 1.05;
+      const h = r * 1.68;
+      const bodyGrad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+      bodyGrad.addColorStop(0, "#475569");
+      bodyGrad.addColorStop(0.5, "#1e293b");
+      bodyGrad.addColorStop(1, "#0f172a");
+      ctx.fillStyle = bodyGrad;
+      ctx.strokeStyle = "#fde047";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, r * 0.35);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#84cc16";
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.roundRect(-w * 0.36, -h * 0.36, w * 0.72, h * 0.34, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `bold ${Math.floor(r * 0.12)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("NOKIA", 0, -h * 0.4);
+
+      ctx.fillStyle = "#1a2e05";
+      ctx.font = `bold ${Math.floor(r * 0.13)}px monospace`;
+      ctx.fillText("3310 MAX", 0, -h * 0.18);
+
+      ctx.fillStyle = "#e2e8f0";
+      for (let row = 0; row < 4; row++) {
+        for (let col = -1; col <= 1; col++) {
+          ctx.beginPath();
+          ctx.ellipse(col * (w * 0.23), h * 0.12 + row * (h * 0.095), w * 0.08, h * 0.032, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawGoogleLogo(ctx, r) {
+      ctx.save();
+      ctx.lineWidth = r * 0.36;
+      ctx.lineCap = "butt";
+      ctx.strokeStyle = "#ea4335";
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.68, -Math.PI * 0.78, -Math.PI * 0.18); ctx.stroke();
+      ctx.strokeStyle = "#fbbc05";
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.68, Math.PI * 0.75, Math.PI * 1.22); ctx.stroke();
+      ctx.strokeStyle = "#34a853";
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.68, Math.PI * 0.18, Math.PI * 0.75); ctx.stroke();
+      ctx.strokeStyle = "#4285f4";
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.68, -Math.PI * 0.02, Math.PI * 0.2); ctx.stroke();
+      ctx.fillStyle = "#4285f4";
+      ctx.fillRect(0, -r * 0.16, r * 0.85, r * 0.32);
+      ctx.restore();
+    }
+
+    function drawFinalFormGodRays(ctx, x, y, r) {
+      if (config.finalGlowIntensity <= 0.05) return;
+      ctx.save();
+      ctx.translate(x, y);
+
+      // 1. Pulsing Radiant Aura behind the Final Form ball
+      const pulse = 1 + Math.sin(performance.now() * 0.008) * 0.12;
+      const auraRadius = r * 2.35 * pulse * config.finalGlowIntensity;
+      const auraGrad = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, auraRadius);
+      auraGrad.addColorStop(0, config.finalRayColor);
+      auraGrad.addColorStop(0.45, "rgba(250, 204, 21, 0.35)");
+      auraGrad.addColorStop(1, "rgba(250, 204, 21, 0)");
+      ctx.fillStyle = auraGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, auraRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Rotating Sunburst Light Beams (God Rays)
+      ctx.rotate(godRayAngle);
+      const rayCount = 12;
+      for (let i = 0; i < rayCount; i++) {
+        ctx.rotate((Math.PI * 2) / rayCount);
+        const rayGrad = ctx.createLinearGradient(0, 0, r * 2.5 * config.finalGlowIntensity, 0);
+        rayGrad.addColorStop(0, "rgba(254, 240, 138, 0.55)");
+        rayGrad.addColorStop(1, "rgba(254, 240, 138, 0)");
+        ctx.fillStyle = rayGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(r * 2.5 * config.finalGlowIntensity, -r * 0.26);
+        ctx.lineTo(r * 2.5 * config.finalGlowIntensity, r * 0.26);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawContainerBorder(ctx) {
+      rainbowHueOffset = (rainbowHueOffset + 0.9) % 360;
+      ctx.save();
+
+      let strokeStyle;
+      if (config.borderStyle === "rainbow") {
+        // Fallback for older iOS Safari if createConicGradient is unavailable
+        if (typeof ctx.createConicGradient === "function") {
+          const grad = ctx.createConicGradient((rainbowHueOffset * Math.PI) / 180, centerX, centerY);
+          grad.addColorStop(0, "#ec4899");
+          grad.addColorStop(0.2, "#8b5cf6");
+          grad.addColorStop(0.4, "#3b82f6");
+          grad.addColorStop(0.6, "#10b981");
+          grad.addColorStop(0.8, "#f59e0b");
+          grad.addColorStop(1, "#ec4899");
+          strokeStyle = grad;
+        } else {
+          const angle = (rainbowHueOffset * Math.PI) / 180;
+          const gx = Math.cos(angle) * 450;
+          const gy = Math.sin(angle) * 450;
+          const grad = ctx.createLinearGradient(centerX - gx, centerY - gy, centerX + gx, centerY + gy);
+          grad.addColorStop(0, "#ec4899");
+          grad.addColorStop(0.25, "#8b5cf6");
+          grad.addColorStop(0.5, "#3b82f6");
+          grad.addColorStop(0.75, "#10b981");
+          grad.addColorStop(1, "#f59e0b");
+          strokeStyle = grad;
+        }
+      } else if (config.borderStyle === "gradient") {
+        const grad = ctx.createLinearGradient(centerX - 450, centerY - 450, centerX + 450, centerY + 450);
+        grad.addColorStop(0, config.borderColor1);
+        grad.addColorStop(1, config.borderColor2);
+        strokeStyle = grad;
+      } else {
+        strokeStyle = config.borderColor1;
+      }
+
+      if (config.flaskShape === "circle") {
+        const neckBottomY = centerY - Math.cos(gapAngle) * flaskRadius;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = config.borderWidth;
+        ctx.shadowColor = "#ffffff";
+        ctx.shadowBlur = config.glowSize * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(centerX - neckHalfWidth, neckTopY);
+        ctx.lineTo(centerX - neckHalfWidth, neckBottomY);
+        ctx.moveTo(centerX + neckHalfWidth, neckTopY);
+        ctx.lineTo(centerX + neckHalfWidth, neckBottomY);
+        ctx.stroke();
+
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = config.borderWidth;
+        ctx.lineCap = "round";
+        ctx.shadowColor = config.borderColor1;
+        ctx.shadowBlur = config.glowSize;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, flaskRadius, -Math.PI / 2 + gapAngle, (3 * Math.PI) / 2 - gapAngle);
+        ctx.stroke();
+      } else if (config.flaskShape === "cup") {
+        const cupW = 425;
+        const topY = 400;
+        const arcCenterY = 1040;
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = config.borderWidth;
+        ctx.lineCap = "round";
+        ctx.shadowColor = config.borderColor1;
+        ctx.shadowBlur = config.glowSize;
+        ctx.beginPath();
+        ctx.moveTo(centerX - cupW, topY);
+        ctx.lineTo(centerX - cupW, arcCenterY);
+        ctx.arc(centerX, arcCenterY, cupW, Math.PI, 0, true);
+        ctx.lineTo(centerX + cupW, topY);
+        ctx.stroke();
+      } else if (config.flaskShape === "box") {
+        const boxW = 430;
+        const topY = 450;
+        const botY = 1430;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = config.borderWidth;
+        ctx.beginPath();
+        ctx.moveTo(centerX - neckHalfWidth, neckTopY);
+        ctx.lineTo(centerX - neckHalfWidth, topY);
+        ctx.moveTo(centerX + neckHalfWidth, neckTopY);
+        ctx.lineTo(centerX + neckHalfWidth, topY);
+        ctx.stroke();
+
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = config.borderWidth;
+        ctx.lineJoin = "round";
+        ctx.shadowColor = config.borderColor1;
+        ctx.shadowBlur = config.glowSize;
+        ctx.beginPath();
+        ctx.moveTo(centerX - neckHalfWidth, topY);
+        ctx.lineTo(centerX - boxW, topY);
+        ctx.lineTo(centerX - boxW, botY);
+        ctx.lineTo(centerX + boxW, botY);
+        ctx.lineTo(centerX + boxW, topY);
+        ctx.lineTo(centerX + neckHalfWidth, topY);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawTopProgressionBar(ctx) {
+      if (!config.showTopChain) return;
+      ctx.save();
+      const startY = 155;
+      const totalItems = tiers.length;
+      const spacing = Math.min(115, 920 / totalItems);
+      const totalW = (totalItems - 1) * spacing;
+      const startX = centerX - totalW / 2;
+
+      tiers.forEach((t, idx) => {
+        const x = startX + idx * spacing;
+        const isReached = idx <= highestTierReached;
+
+        if (idx < totalItems - 1) {
+          ctx.strokeStyle = isReached ? "#fde047" : "rgba(255,255,255,0.2)";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(x + 28, startY);
+          ctx.lineTo(x + spacing - 28, startY);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = t.color;
+        ctx.strokeStyle = isReached ? "#fde047" : t.borderColor;
+        ctx.lineWidth = isReached ? 5 : 2;
+        ctx.beginPath();
+        ctx.arc(x, startY, 24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = t.textColor;
+        ctx.font = "bold 16px Cairo, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(t.label.slice(0, 4), x, startY);
+      });
+      ctx.restore();
+    }
+
+    function renderLoop() {
+      if (!engine) {
+        initSimulation();
+      }
+      Engine.update(engine, 1000 / 60);
+      godRayAngle += 0.018;
+
+      // Continuous Auto-Bounce + Smooth Physical Growth of Final Form balls
+      for (const b of balls) {
+        // 1. Smoothly expand Final Form ball until it reaches its giant targetRadius!
+        if (b.isFinalForm && b.currentRadius < b.targetRadius) {
+          const nextR = Math.min(b.targetRadius, b.currentRadius + 1.8);
+          const scaleFactor = nextR / b.currentRadius;
+          Body.scale(b, scaleFactor, scaleFactor);
+          b.currentRadius = nextR;
+        }
+
+        // 2. Continuous Auto-Bounce (keep balls jumping & lively inside the flask)
+        if (config.autoBounceStrength > 0 && b.position.y > neckTopY + 120) {
+          const speed = Math.hypot(b.velocity.x, b.velocity.y);
+          if (speed < 2.2 && Math.random() < 0.065 * config.autoBounceStrength) {
+            const jumpVy = -(5.5 + Math.random() * 6.5) * config.autoBounceStrength;
+            const jumpVx = (Math.random() - 0.5) * 7 * config.autoBounceStrength;
+            Body.setVelocity(b, { x: b.velocity.x + jumpVx, y: jumpVy });
+          }
+        }
+
+        // 3. Emit continuous golden sparkles from Final Form balls while they stay in the flask
+        if (b.isFinalForm && Math.random() < 0.35 * config.finalGlowIntensity) {
+          const ang = Math.random() * Math.PI * 2;
+          const dist = b.currentRadius * (0.8 + Math.random() * 0.4);
+          particles.push({
+            x: b.position.x + Math.cos(ang) * dist,
+            y: b.position.y + Math.sin(ang) * dist,
+            vx: Math.cos(ang) * (1.5 + Math.random() * 2.5),
+            vy: Math.sin(ang) * (1.5 + Math.random() * 2.5) - 1.5,
+            size: 3 + Math.random() * 4,
+            alpha: 0.9,
+            color: Math.random() > 0.5 ? config.finalRayColor : "#ffffff"
+          });
+        }
+      }
+
+      // 1. Background
+      ctx.fillStyle = config.bgColor1;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Top Chain Bar
+      drawTopProgressionBar(ctx);
+
+      // 3. Watermark
+      if (config.watermarkText) {
+        ctx.save();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
+        ctx.font = "bold 38px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(config.watermarkText, centerX, centerY - 50);
+        ctx.restore();
+      }
+
+      // 4. Draw God Rays BEHIND Final Form balls
+      for (const b of balls) {
+        if (b.isFinalForm) {
+          drawFinalFormGodRays(ctx, b.position.x, b.position.y, b.currentRadius);
+        }
+      }
+
+      // 5. Container Border
+      drawContainerBorder(ctx);
+
+      // 6. Shockwaves
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.radius += sw.speed;
+        sw.alpha -= 0.028;
+        if (sw.alpha <= 0) {
+          shockwaves.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.strokeStyle = sw.color;
+        ctx.globalAlpha = Math.max(0, sw.alpha);
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (sw.isTargetRing) {
+          for (let a = 0; a < 8; a++) {
+            const ang = (a * Math.PI) / 4;
+            ctx.beginPath();
+            ctx.moveTo(sw.x + Math.cos(ang) * (sw.radius * 0.82), sw.y + Math.sin(ang) * (sw.radius * 0.82));
+            ctx.lineTo(sw.x + Math.cos(ang) * (sw.radius * 0.94), sw.y + Math.sin(ang) * (sw.radius * 0.94));
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      // 7. Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.028;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 8. Draw Balls
+      for (const b of balls) {
+        const t = tiers[b.tierIndex];
+        if (!t) continue;
+
+        if (b.visualPopScale < 1.0) {
+          b.visualPopScale = Math.min(1.0, b.visualPopScale + 0.07);
+        }
+
+        ctx.save();
+        ctx.translate(b.position.x, b.position.y);
+        ctx.rotate(b.angle);
+        ctx.scale(b.visualPopScale, b.visualPopScale);
+
+        const r = b.currentRadius || t.radius;
+
+        if (b.isFinalForm) {
+          ctx.shadowColor = config.finalRayColor;
+          ctx.shadowBlur = 35 * config.finalGlowIntensity;
+        }
+
+        if (t.img) {
+          ctx.drawImage(t.img, -r, -r, r * 2, r * 2);
+        } else if (t.shapeStyle === "textOnly") {
+          ctx.fillStyle = t.color;
+          ctx.font = `900 ${Math.max(22, Math.floor(r * 0.65))}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(t.label, 0, 0);
+        } else if (t.shapeStyle === "square") {
+          const side = r * 1.55;
+          ctx.fillStyle = t.color;
+          ctx.strokeStyle = t.borderColor;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.roundRect(-side / 2, -side / 2, side, side, r * 0.28);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = t.textColor;
+          ctx.font = `900 ${Math.floor(r * 0.62)}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(t.label, 0, 0);
+        } else if (t.shapeStyle === "oval") {
+          ctx.fillStyle = t.color;
+          ctx.strokeStyle = t.borderColor;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 1.15, r * 0.56, -0.18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = t.textColor;
+          ctx.font = `900 ${Math.floor(r * 0.34)}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(t.label, 0, 0);
+        } else if (t.shapeStyle === "google") {
+          drawGoogleLogo(ctx, r);
+        } else if (t.shapeStyle === "nokia") {
+          drawNokiaPhone(ctx, r);
+        } else {
+          const sphereGrad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+          sphereGrad.addColorStop(0, "#ffffff");
+          sphereGrad.addColorStop(0.25, t.color);
+          sphereGrad.addColorStop(1, t.color);
+
+          ctx.fillStyle = sphereGrad;
+          ctx.strokeStyle = b.isFinalForm ? config.finalRayColor : t.borderColor;
+          ctx.lineWidth = b.isFinalForm ? 8 : 5;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = t.textColor;
+          ctx.font = `800 ${Math.max(20, Math.floor(r * 0.42))}px Cairo, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(t.label, 0, 0);
+        }
+
+        ctx.restore();
+      }
+
+      // 9. Screen Light Burst Flash Overlay when Final Form is reached
+      if (screenFlashAlpha > 0) {
+        ctx.save();
+        ctx.fillStyle = config.finalRayColor;
+        ctx.globalAlpha = Math.max(0, screenFlashAlpha);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        screenFlashAlpha -= 0.035;
+      }
+
+      // 10. Bottom Hook Caption
+      if (config.captionText) {
+        ctx.save();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 46px Cairo, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(config.captionText, centerX, 1755);
+        ctx.restore();
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // ================== 6. BINDING ALL PANEL CONTROLS ==================
+    document.getElementById("themePresetSelect").onchange = e => {
+      const val = e.target.value;
+      if (val && THEME_PRESETS[val]) {
+        tiers = JSON.parse(JSON.stringify(THEME_PRESETS[val]));
+        renderLevelsUI();
+        initSimulation();
+      }
+    };
+
+    document.getElementById("addTierBtn").onclick = () => {
+      const last = tiers[tiers.length - 1];
+      tiers.push({
+        label: `مستوى ${tiers.length + 1}`,
+        color: "#8b5cf6",
+        borderColor: "#ddd6fe",
+        textColor: "#ffffff",
+        radius: Math.min(180, last.radius + 18),
+        shapeStyle: "circle",
+        soundType: "royal",
+        img: null,
+        customAudioBuffer: null
+      });
+      renderLevelsUI();
+    };
+
+    document.getElementById("showTopChainToggle").onchange = e => {
+      config.showTopChain = e.target.checked;
+    };
+
+    // Tab 2: Colors & Light Burst
+    document.getElementById("finalGlowInput").oninput = e => {
+      config.finalGlowIntensity = Number(e.target.value) / 100;
+      document.getElementById("finalGlowVal").textContent = `${e.target.value}%`;
+    };
+    document.getElementById("finalRayColor").oninput = e => { config.finalRayColor = e.target.value; };
+    document.getElementById("shockwaveColor").oninput = e => { config.shockwaveColor = e.target.value; };
+    document.getElementById("testLightBurstBtn").onclick = () => {
+      const finalIdx = tiers.length - 1;
+      const existingFinal = balls.find(b => b.isFinalForm);
+      if (existingFinal) {
+        triggerMergeEffects(existingFinal.position.x, existingFinal.position.y, finalIdx);
+        playMergeSound(finalIdx);
+      } else {
+        const b = createBall(centerX, centerY - 100, finalIdx, true);
+        if (b) {
+          triggerMergeEffects(b.position.x, b.position.y, finalIdx);
+          playMergeSound(finalIdx);
+        }
+      }
+    };
+
+    document.getElementById("flaskShapeSelect").onchange = e => {
+      config.flaskShape = e.target.value;
+      initSimulation();
+    };
+    document.getElementById("borderStyleSelect").onchange = e => { config.borderStyle = e.target.value; };
+    document.getElementById("borderColor1").oninput = e => { config.borderColor1 = e.target.value; };
+    document.getElementById("borderColor2").oninput = e => { config.borderColor2 = e.target.value; };
+    document.getElementById("bgColor1").oninput = e => { config.bgColor1 = e.target.value; };
+    document.getElementById("borderWidthInput").oninput = e => {
+      config.borderWidth = Number(e.target.value);
+      document.getElementById("borderWidthVal").textContent = `${e.target.value}px`;
+    };
+    document.getElementById("glowSizeInput").oninput = e => {
+      config.glowSize = Number(e.target.value);
+      document.getElementById("glowSizeVal").textContent = e.target.value;
+    };
+
+    // Tab 3: Sounds
+    document.getElementById("soundModeSelect").onchange = e => {
+      config.soundMode = e.target.value;
+      playMergeSound(2);
+    };
+    document.getElementById("masterVolInput").oninput = e => {
+      config.masterVolume = Number(e.target.value) / 100;
+      document.getElementById("masterVolVal").textContent = `${e.target.value}%`;
+      ensureAudioReady();
+    };
+    document.getElementById("bounceSoundToggle").onchange = e => {
+      config.bounceSound = e.target.checked;
+    };
+    document.getElementById("testScaleSoundsBtn").onclick = () => {
+      tiers.forEach((_, idx) => {
+        setTimeout(() => playMergeSound(idx), idx * 240);
+      });
+    };
+    document.getElementById("testFinalSoundBtn").onclick = () => playMergeSound(tiers.length - 1);
+
+    document.getElementById("globalAudioFileInput").onchange = async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      globalCustomAudioBuffer = await decodeAudioFile(file);
+      document.getElementById("globalCustomAudioStatus").textContent = `✅ ${file.name.slice(0, 14)}`;
+      document.getElementById("clearGlobalAudioBtn").classList.remove("hidden");
+    };
+    document.getElementById("clearGlobalAudioBtn").onclick = () => {
+      globalCustomAudioBuffer = null;
+      document.getElementById("globalAudioFileInput").value = "";
+      document.getElementById("globalCustomAudioStatus").textContent = "غير مفعل";
+      document.getElementById("clearGlobalAudioBtn").classList.add("hidden");
+    };
+
+    document.getElementById("finalAudioFileInput").onchange = async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      finalCustomAudioBuffer = await decodeAudioFile(file);
+      document.getElementById("clearFinalAudioBtn").classList.remove("hidden");
+    };
+    document.getElementById("clearFinalAudioBtn").onclick = () => {
+      finalCustomAudioBuffer = null;
+      document.getElementById("finalAudioFileInput").value = "";
+      document.getElementById("clearFinalAudioBtn").classList.add("hidden");
+    };
+
+    // Tab 4: Final Form Growth & Continuous Bouncing
+    document.getElementById("finalGrowthInput").oninput = e => {
+      config.finalGrowthMultiplier = Number(e.target.value);
+      document.getElementById("finalGrowthVal").textContent = `${e.target.value}x`;
+      // Update any existing Final Form balls in the flask immediately!
+      const finalTier = tiers[tiers.length - 1];
+      balls.forEach(b => {
+        if (b.isFinalForm && finalTier) {
+          b.targetRadius = Math.round(finalTier.radius * config.finalGrowthMultiplier);
+        }
+      });
+      renderLevelsUI();
+    };
+
+    document.getElementById("finalTouchGrowToggle").onchange = e => {
+      config.finalTouchGrow = e.target.checked;
+    };
+
+    document.getElementById("autoBounceInput").oninput = e => {
+      config.autoBounceStrength = Number(e.target.value) / 100;
+      document.getElementById("autoBounceVal").textContent = `${e.target.value}%`;
+    };
+
+    document.getElementById("bounceInput").oninput = e => {
+      config.bounciness = Number(e.target.value);
+      document.getElementById("bounceVal").textContent = e.target.value;
+      balls.forEach(b => { b.restitution = config.bounciness; });
+    };
+
+    document.getElementById("gravityInput").oninput = e => {
+      config.gravity = Number(e.target.value);
+      engine.gravity.y = config.gravity;
+      document.getElementById("gravityVal").textContent = e.target.value;
+    };
+
+    document.getElementById("spawnRateInput").oninput = e => {
+      config.spawnRate = Number(e.target.value);
+      document.getElementById("spawnRateVal").textContent = `${e.target.value} ms`;
+      setupSpawner();
+    };
+
+    document.getElementById("autoSpawnToggle").onchange = e => {
+      config.autoSpawn = e.target.checked;
+      setupSpawner();
+    };
+
+    document.getElementById("shakeAllBallsBtn").onclick = () => {
+      balls.forEach(b => {
+        Body.setVelocity(b, {
+          x: (Math.random() - 0.5) * 18,
+          y: -10 - Math.random() * 10
+        });
+      });
+    };
+
+    document.getElementById("captionInput").oninput = e => { config.captionText = e.target.value; };
+    document.getElementById("watermarkInput").oninput = e => { config.watermarkText = e.target.value; };
+
+    // Quick Header / Footer actions
+    document.getElementById("muteQuickBtn").onclick = () => {
+      config.muted = !config.muted;
+      document.getElementById("muteQuickIcon").className = config.muted
+        ? "fa-solid fa-volume-xmark text-red-400"
+        : "fa-solid fa-volume-high";
+      ensureAudioReady();
+    };
+    document.getElementById("restartQuickBtn").onclick = () => initSimulation();
+
+    document.getElementById("spawnFinalTestBtn").onclick = () => {
+      ensureAudioReady();
+      toggleSettingsDrawer(false);
+      const finalIdx = tiers.length - 1;
+      const b = createBall(centerX + (Math.random() - 0.5) * 25, centerY - 120, finalIdx, true);
+      if (b) {
+        Body.setVelocity(b, { x: (Math.random() - 0.5) * 8, y: -9 });
+        triggerMergeEffects(b.position.x, b.position.y, finalIdx);
+        playMergeSound(finalIdx);
+      }
+    };
+
+    // Isolated Settings Drawer Toggle (Hidden during gameplay until clicked)
+    const settingsPanel = document.getElementById("settingsPanel");
+    const topStageStatusBar = document.getElementById("topStageStatusBar");
+    const secretCornerSettingsBtn = document.getElementById("secretCornerSettingsBtn");
+
+    function toggleSettingsDrawer(open) {
+      if (open) {
+        settingsPanel.classList.remove("settings-closed");
+        settingsPanel.classList.add("settings-open");
+      } else {
+        settingsPanel.classList.remove("settings-open");
+        settingsPanel.classList.add("settings-closed");
+      }
+    }
+
+    document.getElementById("openSettingsTopBtn").onclick = () => toggleSettingsDrawer(true);
+    document.getElementById("closeSettingsHeaderBtn").onclick = () => toggleSettingsDrawer(false);
+    document.getElementById("closeSettingsFooterBtn").onclick = () => toggleSettingsDrawer(false);
+
+    // Optional: Hide top status bar for 100% pure canvas view, or restore via tiny corner gear
+    document.getElementById("hideTopBarBtn").onclick = () => {
+      topStageStatusBar.classList.add("hidden");
+      secretCornerSettingsBtn.classList.remove("hidden");
+    };
+    secretCornerSettingsBtn.onclick = () => {
+      topStageStatusBar.classList.remove("hidden");
+      secretCornerSettingsBtn.classList.add("hidden");
+      toggleSettingsDrawer(true);
+    };
+
+    // ================== INITIALIZE STUDIO ==================
+    function startStudioApp() {
+      if (!engine) {
+        renderLevelsUI();
+        initSimulation();
+        requestAnimationFrame(renderLoop);
+      }
+    }
+    if (document.readyState === "loading") {
+      window.addEventListener("DOMContentLoaded", startStudioApp);
+    } else {
+      startStudioApp();
+    }
+  </script>
+</body>
+</html>
